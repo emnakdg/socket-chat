@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Chat - Gerçek Zamanlı</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 95%;
+            max-width: 900px;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .status {
+            background: #f8f9fa;
+            padding: 8px 16px;
+            text-align: center;
+            font-size: 14px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .login-screen, .chat-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+        }
+        
+        .chat-screen {
+            display: none;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .success-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+        }
+        
+        .danger-btn {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        .room-info {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .users-list {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .user-tag {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            display: inline-block;
+            margin: 3px;
+            font-size: 14px;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #fafafa;
+        }
+        
+        .message {
+            margin-bottom: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .message.own {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: 20%;
+        }
+        
+        .message.system {
+            background: #e8f5e8;
+            text-align: center;
+            font-style: italic;
+            color: #2d5a2d;
+            border: none;
+        }
+        
+        .message-header {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+            opacity: 0.8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .message-time {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .message-input-area {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+        
+        .message-input {
+            flex: 1;
+        }
+        
+        .send-btn {
+            padding: 15px 25px;
+            margin: 0;
+        }
+        
+        .error, .success {
+            text-align: center;
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .typing-indicator {
+            font-style: italic;
+            color: #6c757d;
+            padding: 5px 15px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .message.own {
+                margin-left: 10%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Socket.IO Chat - Gerçek Zamanlı</h1>
+            <p>Arkadaşlarınızla gerçek zamanlı mesajlaşın!</p>
+        </div>
+        
+        <div class="status" id="connectionStatus">Bağlanıyor...</div>
+        
+        <!-- Giriş Ekranı -->
+        <div class="login-screen" id="loginScreen">
+            <div class="form-group">
+                <label for="username">👤 Kullanıcı Adınız:</label>
+                <input type="text" id="username" placeholder="Kullanıcı adınızı girin..." maxlength="20">
+            </div>
+            
+            <div class="form-group">
+                <label for="roomId">🏠 Oda Kodu:</label>
+                <input type="text" id="roomId" placeholder="Oda kodunu girin (örn: ZARTA123)" maxlength="15">
+            </div>
+            
+            <div>
+                <button onclick="joinRoom()" id="joinBtn">Odaya Katıl</button>
+                <button onclick="createRoom()" class="success-btn">🆕 Yeni Oda Oluştur</button>
+            </div>
+            
+            <div id="loginMessage"></div>
+            
+            <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+                <h3>💡 Nasıl Kullanılır?</h3>
+                <ol style="margin-left: 20px; line-height: 1.8;">
+                    <li>Kullanıcı adınızı girin</li>
+                    <li>Oda kodu yazın veya yeni oda oluşturun</li>
+                    <li>Arkadaşlarınıza aynı oda kodunu verin</li>
+                    <li>Gerçek zamanlı mesajlaşmaya başlayın!</li>
+                </ol>
+            </div>
+        </div>
+        
+        <!-- Chat Ekranı -->
+        <div class="chat-screen" id="chatScreen">
+            <div class="room-info">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>🏠 Oda:</strong> <span id="currentRoom"></span> | 
+                        <strong>👤 Sen:</strong> <span id="currentUser"></span>
+                    </div>
+                    <button onclick="leaveRoom()" class="danger-btn" style="padding: 8px 16px; font-size: 14px;">
+                        🚪 Odadan Ayrıl
+                    </button>
+                </div>
+            </div>
+            
+            <div class="users-list">
+                <strong>👥 Odadaki Kullanıcılar (<span id="userCount">0</span>):</strong>
+                <div id="usersList"></div>
+            </div>
+            
+            <div class="messages" id="messages">
+                <div class="message system">
+                    Chat'e hoş geldiniz! Mesajlarınız gerçek zamanlı olarak iletilir.
+                </div>
+            </div>
+            
+            <div class="message-input-area">
+                <input 
+                    type="text" 
+                    class="message-input" 
+                    id="messageInput" 
+                    placeholder="Mesajınızı yazın..." 
+                    onkeypress="handleEnter(event)"
+                    maxlength="500"
+                >
+                <button class="send-btn" onclick="sendMessage()" id="sendBtn">
+                    📤 Gönder
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Socket.IO bağlantısı
+        const socket = io();
+        
+        let currentUser = '';
+        let currentRoom = '';
+        let isConnected = false;
+        
+        // Bağlantı durumu
+        socket.on('connect', () => {
+            isConnected = true;
+            updateConnectionStatus('Bağlandı ✅', 'connected');
+            console.log('✅ Sunucuya bağlandı');
+        });
+        
+        socket.on('disconnect', () => {
+            isConnected = false;
+            updateConnectionStatus('Bağlantı koptu ❌', 'disconnected');
+            console.log('❌ Sunucu bağlantısı koptu');
+        });
+        
+        // Bağlantı durumu güncelleme
+        function updateConnectionStatus(message, status) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.textContent = message;
+            statusElement.className = `status ${status}`;
+        }
+        
+        // Ekran değiştirme
+        function showScreen(screen) {
+            document.getElementById('loginScreen').style.display = screen === 'login' ? 'flex' : 'none';
+            document.getElementById('chatScreen').style.display = screen === 'chat' ? 'flex' : 'none';
+        }
+        
+        // Mesaj gösterme
+        function showMessage(elementId, message, type = 'error') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="${type}">${message}</div>`;
+            
+            setTimeout(() => {
+                element.innerHTML = '';
+            }, 5000);
+        }
+        
+        // Rastgele oda oluştur
+        function createRoom() {
+            const roomCode = 'ROOM' + Math.random().toString(36).substr(2, 4).toUpperCase();
+            document.getElementById('roomId').value = roomCode;
+            showMessage('loginMessage', `🎉 Yeni oda oluşturuldu: ${roomCode}`, 'success');
+        }
+        
+        // Odaya katıl
+        function joinRoom() {
+            if (!isConnected) {
+                showMessage('loginMessage', '❌ Sunucu bağlantısı yok! Lütfen bekleyin.');
+                return;
+            }
+            
+            const username = document.getElementById('username').value.trim();
+            const roomId = document.getElementById('roomId').value.trim().toUpperCase();
+            
+            if (!username) {
+                showMessage('loginMessage', '❌ Kullanıcı adı gerekli!');
+                document.getElementById('username').focus();
+                return;
+            }
+            
+            if (username.length < 2) {
+                showMessage('loginMessage', '❌ Kullanıcı adı en az 2 karakter olmalı!');
+                return;
+            }
+            
+            if (!roomId) {
+                showMessage('loginMessage', '❌ Oda kodu gerekli!');
+                document.getElementById('roomId').focus();
+                return;
+            }
+            
+            if (roomId.length < 3) {
+                showMessage('loginMessage', '❌ Oda kodu en az 3 karakter olmalı!');
+                return;
+            }
+            
+            // Butonları devre dışı bırak
+            document.getElementById('joinBtn').disabled = true;
+            
+            // Sunucuya katılma isteği gönder
+            socket.emit('join_room', { username, roomId });
+            
+            showMessage('loginMessage', '⏳ Odaya katılıyor...', 'success');
+        }
+        
+        // Başarıyla katıldı
+        socket.on('join_success', (data) => {
+            currentUser = data.username;
+            currentRoom = data.room;
+            
+            document.getElementById('currentUser').textContent = currentUser;
+            document.getElementById('currentRoom').textContent = currentRoom;
+            
+            updateUsersList(data.users);
+            showScreen('chat');
+            
+            document.getElementById('messageInput').focus();
+            
+            addSystemMessage(`🎉 ${currentRoom} odasına başarıyla katıldınız!`);
+        });
+        
+        // Yeni kullanıcı katıldı
+        socket.on('user_joined', (data) => {
+            updateUsersList(data.users);
+        });
+        
+        // Kullanıcı ayrıldı
+        socket.on('user_left', (data) => {
+            updateUsersList(data.users);
+        });
+        
+        // Sistem mesajı
+        socket.on('system_message', (message) => {
+            addSystemMessage(message);
+        });
+        
+        // Yeni mesaj
+        socket.on('new_message', (data) => {
+            addMessage(data.username, data.message, false, data.timestamp);
+        });
+        
+        // Kullanıcı listesi güncelle
+        function updateUsersList(users) {
+            const usersList = document.getElementById('usersList');
+            const userCount = document.getElementById('userCount');
+            
+            usersList.innerHTML = '';
+            userCount.textContent = users.length;
+            
+            users.forEach(user => {
+                const userTag = document.createElement('span');
+                userTag.className = 'user-tag';
+                userTag.textContent = user === currentUser ? `${user} (Sen)` : user;
+                if (user === currentUser) {
+                    userTag.style.background = '#27ae60';
+                }
+                usersList.appendChild(userTag);
+            });
+        }
+        
+        // Mesaj ekleme
+        function addMessage(username, message, isOwn = false, timestamp = null) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isOwn ? 'own' : ''}`;
+            
+            const time = timestamp || new Date().toLocaleTimeString('tr-TR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span>${isOwn ? 'Sen' : username}</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div>${escapeHtml(message)}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Sistem mesajı ekleme
+        function addSystemMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message system';
+            messageDiv.innerHTML = `🔔 ${escapeHtml(message)}`;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Mesaj gönder
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                messageInput.focus();
+                return;
+            }
+            
+            if (!isConnected) {
+                showMessage('loginMessage', '❌ Bağlantı yok! Mesaj gönderilemedi.');
+                return;
+            }
+            
+            // Kendi mesajını hemen ekle
+            addMessage(currentUser, message, true);
+            
+            // Sunucuya gönder
+            socket.emit('send_message', {
+                room: currentRoom,
+                username: currentUser,
+                message: message
+            });
+            
+            messageInput.value = '';
+            messageInput.focus();
+        }
+        
+        // Enter tuşu ile mesaj gönder
+        function handleEnter(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        // Odadan ayrıl
+        function leaveRoom() {
+            if (confirm('Odadan ayrılmak istediğinizden emin misiniz?')) {
+                socket.emit('leave_room');
+                
+                currentUser = '';
+                currentRoom = '';
+                
+                document.getElementById('username').value = '';
+                document.getElementById('roomId').value = '';
+                document.getElementById('joinBtn').disabled = false;
+                document.getElementById('messages').innerHTML = '';
+                
+                showScreen('login');
+                showMessage('loginMessage', '👋 Odadan başarıyla ayrıldınız.', 'success');
+            }
+        }
+        
+        // HTML escape (güvenlik)
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        // Sayfa yüklendiğinde
+        window.addEventListener('load', () => {
+            document.getElementById('username').focus();
+        });
+        
+        // Sayfa kapanırken
+        window.addEventListener('beforeunload', () => {
+            if (currentRoom) {
+                socket.emit('leave_room');
+            }
+        });
+    </script>
+</body>
+</html>
