@@ -1,3 +1,7 @@
+// ===========================================
+// 1. SUNUCU KODU (server.js)
+// ===========================================
+
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');

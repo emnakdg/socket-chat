@@ -161,6 +161,28 @@
             background: #fafafa;
             min-height: 200px;
             max-height: calc(100vh - 400px);
+            scrollbar-width: thin;
+            scrollbar-color: #667eea #f1f1f1;
+        }
+        
+        /* Webkit tabanlı tarayıcılar için custom scrollbar */
+        .messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .messages::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        
+        .messages::-webkit-scrollbar-thumb:hover {
+            background: #5a67d8;
         }
         
         .message {
@@ -258,9 +280,15 @@
             animation: pulse 1.5s infinite;
         }
         
-        @keyframes pulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
         }
         
         @media (max-width: 768px) {
@@ -460,6 +488,9 @@
             updateUsersList(data.users);
             showScreen('chat');
             
+            // Scroll tracking'i başlat
+            setupScrollTracking();
+            
             document.getElementById('messageInput').focus();
             
             addSystemMessage(`🎉 ${currentRoom} odasına başarıyla katıldınız!`);
@@ -504,7 +535,24 @@
             });
         }
         
-        // Mesaj ekleme - scroll fix
+        // Global scroll kontrol değişkeni
+        let userScrolledUp = false;
+        
+        // Scroll pozisyonu takibi
+        function setupScrollTracking() {
+            const messagesDiv = document.getElementById('messages');
+            
+            messagesDiv.addEventListener('scroll', () => {
+                const scrollTop = messagesDiv.scrollTop;
+                const scrollHeight = messagesDiv.scrollHeight;
+                const clientHeight = messagesDiv.clientHeight;
+                
+                // Kullanıcı alta yakın mı kontrol et (50px tolerance)
+                userScrolledUp = (scrollHeight - scrollTop - clientHeight) > 50;
+            });
+        }
+        
+        // Mesaj ekleme - akıllı scroll
         function addMessage(username, message, isOwn = false, timestamp = null) {
             const messagesDiv = document.getElementById('messages');
             const messageDiv = document.createElement('div');
@@ -525,13 +573,21 @@
             
             messagesDiv.appendChild(messageDiv);
             
-            // Smooth scroll to bottom
-            setTimeout(() => {
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            }, 10);
+            // Sadece kullanıcı altta ise veya kendi mesajı ise otomatik scroll
+            if (!userScrolledUp || isOwn) {
+                setTimeout(() => {
+                    messagesDiv.scrollTo({
+                        top: messagesDiv.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }, 10);
+            } else {
+                // Yeni mesaj bildirimi göster
+                showNewMessageNotification();
+            }
         }
         
-        // Sistem mesajı ekleme - scroll fix
+        // Sistem mesajı ekleme - akıllı scroll
         function addSystemMessage(message) {
             const messagesDiv = document.getElementById('messages');
             const messageDiv = document.createElement('div');
@@ -540,10 +596,63 @@
             
             messagesDiv.appendChild(messageDiv);
             
-            // Smooth scroll to bottom
+            // Sistem mesajları için her zaman scroll
             setTimeout(() => {
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                messagesDiv.scrollTo({
+                    top: messagesDiv.scrollHeight,
+                    behavior: 'smooth'
+                });
             }, 10);
+        }
+        
+        // Yeni mesaj bildirimi
+        let newMessageNotification = null;
+        
+        function showNewMessageNotification() {
+            // Önceki bildirimi kaldır
+            if (newMessageNotification) {
+                newMessageNotification.remove();
+            }
+            
+            const messagesDiv = document.getElementById('messages');
+            newMessageNotification = document.createElement('div');
+            newMessageNotification.style.cssText = `
+                position: sticky;
+                bottom: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #667eea;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-size: 14px;
+                cursor: pointer;
+                z-index: 100;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                animation: slideUp 0.3s ease-out;
+                width: fit-content;
+                margin: 0 auto;
+            `;
+            newMessageNotification.innerHTML = '📩 Yeni mesaj • Aşağı kay';
+            
+            newMessageNotification.onclick = () => {
+                messagesDiv.scrollTo({
+                    top: messagesDiv.scrollHeight,
+                    behavior: 'smooth'
+                });
+                newMessageNotification.remove();
+                newMessageNotification = null;
+            };
+            
+            messagesDiv.appendChild(newMessageNotification);
+            
+            // 5 saniye sonra otomatik kaldır
+            setTimeout(() => {
+                if (newMessageNotification) {
+                    newMessageNotification.remove();
+                    newMessageNotification = null;
+                }
+            }, 5000);
         }
         
         // Mesaj gönder
