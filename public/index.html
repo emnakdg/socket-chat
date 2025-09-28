@@ -66,6 +66,9 @@
         
         .chat-screen {
             display: none;
+            padding: 20px;
+            height: calc(100vh - 120px);
+            overflow: hidden;
         }
         
         .form-group {
@@ -156,6 +159,8 @@
             padding: 15px;
             margin-bottom: 15px;
             background: #fafafa;
+            min-height: 200px;
+            max-height: calc(100vh - 400px);
         }
         
         .message {
@@ -200,6 +205,11 @@
             display: flex;
             gap: 10px;
             align-items: stretch;
+            margin-top: auto;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
         }
         
         .message-input {
@@ -494,7 +504,7 @@
             });
         }
         
-        // Mesaj ekleme
+        // Mesaj ekleme - scroll fix
         function addMessage(username, message, isOwn = false, timestamp = null) {
             const messagesDiv = document.getElementById('messages');
             const messageDiv = document.createElement('div');
@@ -514,10 +524,14 @@
             `;
             
             messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Smooth scroll to bottom
+            setTimeout(() => {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }, 10);
         }
         
-        // Sistem mesajı ekleme
+        // Sistem mesajı ekleme - scroll fix
         function addSystemMessage(message) {
             const messagesDiv = document.getElementById('messages');
             const messageDiv = document.createElement('div');
@@ -525,7 +539,11 @@
             messageDiv.innerHTML = `🔔 ${escapeHtml(message)}`;
             
             messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Smooth scroll to bottom
+            setTimeout(() => {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }, 10);
         }
         
         // Mesaj gönder
